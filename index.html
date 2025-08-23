@@ -1,0 +1,329 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Fantastic Ten">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>Counting in Tens App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f8ff;
+            color: #333;
+            margin: 0;
+        }
+        h1 {
+            color: #ff6347;
+        }
+        #container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            margin: 20px auto;
+            max-width: 800px;
+        }
+        #tens, #ones {
+            border: 2px solid #87ceeb;
+            padding: 10px;
+            margin: 10px;
+            min-height: 200px;
+            width: 300px;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+        }
+        #tens {
+            background-color: #ffe4b5;
+        }
+        #ones {
+            background-color: #90ee90;
+        }
+        .item {
+            width: 40px;
+            height: 40px;
+            background-color: #ff4500;
+            border-radius: 50%;
+            margin: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .small {
+            width: 20px;
+            height: 20px;
+            background-color: #ffffff;
+            color: #1e90ff;
+            cursor: default;
+        }
+        .ten-group {
+            width: 200px;
+            height: 50px;
+            background-color: #1e90ff;
+            margin: 10px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-radius: 10px;
+            padding: 5px;
+        }
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            margin: 10px;
+            background-color: #32cd32;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #228b22;
+        }
+        #total {
+            font-size: 24px;
+            margin-top: 20px;
+            color: #ff6347;
+        }
+        #instructions {
+            font-size: 16px;
+            margin: 20px;
+            color: #555;
+        }
+        #apples {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px;
+            max-width: 800px;
+            border: 2px dashed #87ceeb;
+            padding: 10px;
+        }
+        #input-container {
+            margin: 20px;
+        }
+        input[type="number"] {
+            font-size: 18px;
+            padding: 10px;
+            width: 100px;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .highlight {
+            animation: pulse 1s infinite;
+        }
+        #confetti {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .confetti {
+            position: absolute;
+            top: 0;
+            font-size: 1.6rem;
+            animation: confetti-fall linear 5s forwards;
+        }
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100%) rotate(0);
+            }
+            100% {
+                transform: translateY(100vh) rotate(180deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Learn Counting in Groups of 10s!</h1>
+    <p id="instructions">Hi kiddo! Enter a number between 1 and 99 or click Random. Generate apples, then click the pulsing apples to group tens into baskets. Then click the remaining apples one by one to move to ones basket. Yay!</p>
+    
+    <div id="input-container">
+        <input type="number" id="num" min="1" max="99" placeholder="1-99">
+        <button onclick="generateApples()">Generate</button>
+        <button onclick="randomNumber()">Random</button>
+        <button onclick="reset()">Reset</button>
+    </div>
+    
+    <div id="apples"></div>
+    
+    <div id="container">
+        <div id="tens">
+            <h2>Tens (Baskets)</h2>
+        </div>
+        <div id="ones">
+            <h2>Ones (Apples)</h2>
+        </div>
+    </div>
+    
+    <p id="total">Total: 0</p>
+    
+    <audio id="applause" src="app-5.mp3"></audio>
+    
+    <div id="confetti"></div>
+
+    <script>
+        function generateApples() {
+            const numInput = document.getElementById('num');
+            let num = parseInt(numInput.value);
+            if (isNaN(num) || num < 1 || num > 99) {
+                alert('Please enter a number between 1 and 99.');
+                return;
+            }
+            reset();
+            document.getElementById('total').textContent = `Total: ${num}`;
+            const applesDiv = document.getElementById('apples');
+            for (let i = 1; i <= num; i++) {
+                const item = document.createElement('div');
+                item.className = 'item';
+                item.textContent = '🍎';
+                applesDiv.appendChild(item);
+            }
+            updateHighlights();
+        }
+
+        function randomNumber() {
+            const num = Math.floor(Math.random() * 99) + 1;
+            document.getElementById('num').value = num;
+            generateApples();
+        }
+
+        function groupTen() {
+            const applesDiv = document.getElementById('apples');
+            const group = document.createElement('div');
+            group.className = 'ten-group';
+            for (let j = 0; j < 10; j++) {
+                const apple = applesDiv.firstChild;
+                if (apple) {
+                    applesDiv.removeChild(apple);
+                    apple.classList.add('small');
+                    apple.classList.remove('highlight');
+                    apple.onclick = null;
+                    group.appendChild(apple);
+                }
+            }
+            document.getElementById('tens').appendChild(group);
+            updateHighlights();
+        }
+
+        function moveToOnes(apple) {
+            const onesDiv = document.getElementById('ones');
+            const applesDiv = document.getElementById('apples');
+            applesDiv.removeChild(apple);
+            apple.onclick = null;
+            onesDiv.appendChild(apple);
+            updateHighlights();
+        }
+
+        function updateHighlights() {
+            const applesDiv = document.getElementById('apples');
+            const children = applesDiv.children;
+            for (let child of children) {
+                child.classList.remove('highlight');
+                child.onclick = null;
+            }
+            if (children.length >= 10) {
+                const tenth = children[9];
+                tenth.classList.add('highlight');
+                tenth.onclick = groupTen;
+            } else {
+                for (let child of children) {
+                    child.onclick = () => moveToOnes(child);
+                }
+            }
+            checkIfDone();
+        }
+
+        function checkIfDone() {
+            const applesDiv = document.getElementById('apples');
+            if (applesDiv.children.length === 0) {
+                applaud();
+            }
+        }
+
+        function reset() {
+            document.getElementById('apples').innerHTML = '';
+            document.getElementById('tens').innerHTML = '<h2>Tens (Baskets)</h2>';
+            document.getElementById('ones').innerHTML = '<h2>Ones (Apples)</h2>';
+            document.getElementById('total').textContent = 'Total: 0';
+            document.getElementById('confetti').innerHTML = '';
+        }
+
+        function applaud() {
+            document.getElementById('applause').play();
+            confettiBurst();
+        }
+
+        const confettiContainer = document.getElementById('confetti');
+
+        function showConfetti() {
+            const confetti = document.createElement('div');
+            confetti.textContent = '🎉';
+            confetti.classList.add('confetti');
+            confetti.style.left = Math.random() * window.innerWidth + 'px';
+            confettiContainer.appendChild(confetti);
+            setTimeout(() => {
+                confetti.remove();
+            }, 5000);
+        }
+
+        function confettiBurst() {
+            for (let i = 0; i < 50; i++) {
+                setTimeout(showConfetti, i * 50);
+            }
+        }
+    </script>
+</body>
+</html>
