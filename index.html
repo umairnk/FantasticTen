@@ -103,15 +103,16 @@
             cursor: default;
         }
         .ten-group {
-            width: 200px;
+            width: 100%; /* Full width of the tens container */
             height: 50px;
             background-color: #1e90ff;
-            margin: 10px;
+            margin: 10px 0;
             display: flex;
             justify-content: space-around;
             align-items: center;
             border-radius: 10px;
             padding: 5px;
+            box-sizing: border-box;
         }
         button {
             font-size: 18px;
@@ -144,6 +145,7 @@
             max-width: 800px;
             border: 2px dashed #87ceeb;
             padding: 10px;
+            background-color: #f5f5f5;
         }
         #input-container {
             margin: 20px;
@@ -152,6 +154,11 @@
             font-size: 18px;
             padding: 10px;
             width: 100px;
+        }
+        #feedback {
+            font-size: 18px;
+            margin: 10px;
+            color: #ff6347;
         }
         @keyframes pulse {
             0% { transform: scale(1); }
@@ -188,13 +195,16 @@
 </head>
 <body>
     <h1>Learn Counting in Groups of 10s!</h1>
-    <p id="instructions">Hi kiddo! Enter a number between 1 and 99 or click Random. Generate apples, then click the pulsing apples to group tens into baskets. Then click the remaining apples one by one to move to ones basket. Yay!</p>
+    <p id="instructions">Hi kiddo! Count the apples, group them into tens by clicking the pulsing apple, and move the rest to ones. Then enter how many apples there are!</p>
     
     <div id="input-container">
-        <input type="number" id="num" min="1" max="99" placeholder="1-99">
-        <button onclick="generateApples()">Generate</button>
-        <button onclick="randomNumber()">Random</button>
+        <button onclick="generateApples()">New Apples</button>
         <button onclick="reset()">Reset</button>
+        <br>
+        <label for="answer">How many apples? </label>
+        <input type="number" id="answer" min="1" max="99" placeholder="1-99">
+        <button onclick="checkAnswer()">Check Answer</button>
+        <p id="feedback"></p>
     </div>
     
     <div id="apples"></div>
@@ -208,24 +218,21 @@
         </div>
     </div>
     
-    <p id="total">Total: 0</p>
+    <p id="total">Total: ?</p>
     
     <audio id="applause" src="app-5.mp3"></audio>
     
     <div id="confetti"></div>
 
     <script>
+        let totalApples = 0;
+
         function generateApples() {
-            const numInput = document.getElementById('num');
-            let num = parseInt(numInput.value);
-            if (isNaN(num) || num < 1 || num > 99) {
-                alert('Please enter a number between 1 and 99.');
-                return;
-            }
+            totalApples = Math.floor(Math.random() * 99) + 1;
             reset();
-            document.getElementById('total').textContent = `Total: ${num}`;
+            document.getElementById('total').textContent = `Total: ?`;
             const applesDiv = document.getElementById('apples');
-            for (let i = 1; i <= num; i++) {
+            for (let i = 1; i <= totalApples; i++) {
                 const item = document.createElement('div');
                 item.className = 'item';
                 item.textContent = '🍎';
@@ -234,10 +241,21 @@
             updateHighlights();
         }
 
-        function randomNumber() {
-            const num = Math.floor(Math.random() * 99) + 1;
-            document.getElementById('num').value = num;
-            generateApples();
+        function checkAnswer() {
+            const answerInput = document.getElementById('answer');
+            const userAnswer = parseInt(answerInput.value);
+            const feedback = document.getElementById('feedback');
+            if (isNaN(userAnswer) || userAnswer < 1 || userAnswer > 99) {
+                feedback.textContent = 'Please enter a number between 1 and 99.';
+                return;
+            }
+            if (userAnswer === totalApples) {
+                feedback.textContent = 'Yay! Correct!';
+                document.getElementById('total').textContent = `Total: ${totalApples}`;
+                applaud();
+            } else {
+                feedback.textContent = `Oops! Try again.`;
+            }
         }
 
         function groupTen() {
@@ -283,21 +301,15 @@
                     child.onclick = () => moveToOnes(child);
                 }
             }
-            checkIfDone();
-        }
-
-        function checkIfDone() {
-            const applesDiv = document.getElementById('apples');
-            if (applesDiv.children.length === 0) {
-                applaud();
-            }
         }
 
         function reset() {
             document.getElementById('apples').innerHTML = '';
             document.getElementById('tens').innerHTML = '<h2>Tens (Baskets)</h2>';
             document.getElementById('ones').innerHTML = '<h2>Ones (Apples)</h2>';
-            document.getElementById('total').textContent = 'Total: 0';
+            document.getElementById('total').textContent = 'Total: ?';
+            document.getElementById('answer').value = '';
+            document.getElementById('feedback').textContent = '';
             document.getElementById('confetti').innerHTML = '';
         }
 
@@ -324,6 +336,9 @@
                 setTimeout(showConfetti, i * 50);
             }
         }
+
+        // Generate apples on page load
+        generateApples();
     </script>
 </body>
 </html>
