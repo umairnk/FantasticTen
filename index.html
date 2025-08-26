@@ -1,43 +1,4 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -103,7 +64,7 @@
             cursor: default;
         }
         .ten-group {
-            width: 100%; /* Full width of the tens container */
+            width: 100%;
             height: 50px;
             background-color: #1e90ff;
             margin: 10px 0;
@@ -191,19 +152,48 @@
                 transform: translateY(100vh) rotate(180deg);
             }
         }
+        #answer-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px;
+        }
+        #answer-input {
+            flex: 1;
+        }
+        #keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 50px);
+            gap: 5px;
+        }
+        #keypad button {
+            font-size: 24px;
+            padding: 10px;
+            background-color: #ddd;
+            color: #333;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #keypad button:hover {
+            background-color: #ccc;
+        }
+        #keypad #enter {
+            background-color: #32cd32;
+            color: white;
+        }
+        #keypad #enter:hover {
+            background-color: #228b22;
+        }
     </style>
 </head>
 <body>
     <h1>Learn Counting in Groups of 10s!</h1>
-    <p id="instructions">Hi kiddo! Count the apples, group them into tens by clicking the pulsing apple, and move the rest to ones. Then enter how many apples there are!</p>
+    <p id="instructions">Hi kiddo! Count the fruits, group them into tens by clicking the pulsing fruit, and move the rest to ones. When all fruits are in baskets, use the keypad to enter how many fruits there are!</p>
     
     <div id="input-container">
-        <button onclick="generateApples()">New Apples</button>
+        <button onclick="generateFruits()">New Fruits</button>
         <button onclick="reset()">Reset</button>
-        <br>
-        <label for="answer">How many apples? </label>
-        <input type="number" id="answer" min="1" max="99" placeholder="1-99">
-        <button onclick="checkAnswer()">Check Answer</button>
         <p id="feedback"></p>
     </div>
     
@@ -214,7 +204,28 @@
             <h2>Tens (Baskets)</h2>
         </div>
         <div id="ones">
-            <h2>Ones (Apples)</h2>
+            <h2>Ones (Fruits)</h2>
+        </div>
+    </div>
+    
+    <div id="answer-area">
+        <div id="answer-input">
+            <label for="answer">How many fruits? </label>
+            <input type="number" id="answer" min="1" max="99" placeholder="1-99" disabled>
+        </div>
+        <div id="keypad">
+            <button onclick="appendNumber('7')">7</button>
+            <button onclick="appendNumber('8')">8</button>
+            <button onclick="appendNumber('9')">9</button>
+            <button onclick="appendNumber('4')">4</button>
+            <button onclick="appendNumber('5')">5</button>
+            <button onclick="appendNumber('6')">6</button>
+            <button onclick="appendNumber('1')">1</button>
+            <button onclick="appendNumber('2')">2</button>
+            <button onclick="appendNumber('3')">3</button>
+            <button onclick="backspace()">←</button>
+            <button onclick="appendNumber('0')">0</button>
+            <button id="enter" onclick="checkAnswer()">Enter</button>
         </div>
     </div>
     
@@ -225,33 +236,49 @@
     <div id="confetti"></div>
 
     <script>
-        let totalApples = 0;
+        const fruits = ['🍎', '🍊', '🥭', '🍌', '🍉', '🍇'];
+        let totalFruits = 0;
+        let currentFruit = '';
 
-        function generateApples() {
-            totalApples = Math.floor(Math.random() * 99) + 1;
+        function generateFruits() {
+            totalFruits = Math.floor(Math.random() * 99) + 1;
+            currentFruit = fruits[Math.floor(Math.random() * fruits.length)];
             reset();
             document.getElementById('total').textContent = `Total: ?`;
-            const applesDiv = document.getElementById('apples');
-            for (let i = 1; i <= totalApples; i++) {
+            const fruitsDiv = document.getElementById('apples');
+            for (let i = 1; i <= totalFruits; i++) {
                 const item = document.createElement('div');
                 item.className = 'item';
-                item.textContent = '🍎';
-                applesDiv.appendChild(item);
+                item.textContent = currentFruit;
+                fruitsDiv.appendChild(item);
             }
             updateHighlights();
         }
 
+        function appendNumber(num) {
+            const answer = document.getElementById('answer');
+            if (answer.disabled) return;
+            answer.value += num;
+        }
+
+        function backspace() {
+            const answer = document.getElementById('answer');
+            if (answer.disabled) return;
+            answer.value = answer.value.slice(0, -1);
+        }
+
         function checkAnswer() {
-            const answerInput = document.getElementById('answer');
-            const userAnswer = parseInt(answerInput.value);
+            const answer = document.getElementById('answer');
+            if (answer.disabled) return;
+            const userAnswer = parseInt(answer.value);
             const feedback = document.getElementById('feedback');
             if (isNaN(userAnswer) || userAnswer < 1 || userAnswer > 99) {
                 feedback.textContent = 'Please enter a number between 1 and 99.';
                 return;
             }
-            if (userAnswer === totalApples) {
+            if (userAnswer === totalFruits) {
                 feedback.textContent = 'Yay! Correct!';
-                document.getElementById('total').textContent = `Total: ${totalApples}`;
+                document.getElementById('total').textContent = `Total: ${totalFruits}`;
                 applaud();
             } else {
                 feedback.textContent = `Oops! Try again.`;
@@ -259,35 +286,35 @@
         }
 
         function groupTen() {
-            const applesDiv = document.getElementById('apples');
+            const fruitsDiv = document.getElementById('apples');
             const group = document.createElement('div');
             group.className = 'ten-group';
             for (let j = 0; j < 10; j++) {
-                const apple = applesDiv.firstChild;
-                if (apple) {
-                    applesDiv.removeChild(apple);
-                    apple.classList.add('small');
-                    apple.classList.remove('highlight');
-                    apple.onclick = null;
-                    group.appendChild(apple);
+                const fruit = fruitsDiv.firstChild;
+                if (fruit) {
+                    fruitsDiv.removeChild(fruit);
+                    fruit.classList.add('small');
+                    fruit.classList.remove('highlight');
+                    fruit.onclick = null;
+                    group.appendChild(fruit);
                 }
             }
             document.getElementById('tens').appendChild(group);
             updateHighlights();
         }
 
-        function moveToOnes(apple) {
+        function moveToOnes(fruit) {
             const onesDiv = document.getElementById('ones');
-            const applesDiv = document.getElementById('apples');
-            applesDiv.removeChild(apple);
-            apple.onclick = null;
-            onesDiv.appendChild(apple);
+            const fruitsDiv = document.getElementById('apples');
+            fruitsDiv.removeChild(fruit);
+            fruit.onclick = null;
+            onesDiv.appendChild(fruit);
             updateHighlights();
         }
 
         function updateHighlights() {
-            const applesDiv = document.getElementById('apples');
-            const children = applesDiv.children;
+            const fruitsDiv = document.getElementById('apples');
+            const children = fruitsDiv.children;
             for (let child of children) {
                 child.classList.remove('highlight');
                 child.onclick = null;
@@ -301,14 +328,18 @@
                     child.onclick = () => moveToOnes(child);
                 }
             }
+            if (children.length === 0) {
+                document.getElementById('answer').disabled = false;
+            }
         }
 
         function reset() {
             document.getElementById('apples').innerHTML = '';
             document.getElementById('tens').innerHTML = '<h2>Tens (Baskets)</h2>';
-            document.getElementById('ones').innerHTML = '<h2>Ones (Apples)</h2>';
+            document.getElementById('ones').innerHTML = '<h2>Ones (Fruits)</h2>';
             document.getElementById('total').textContent = 'Total: ?';
             document.getElementById('answer').value = '';
+            document.getElementById('answer').disabled = true;
             document.getElementById('feedback').textContent = '';
             document.getElementById('confetti').innerHTML = '';
         }
@@ -337,8 +368,8 @@
             }
         }
 
-        // Generate apples on page load
-        generateApples();
+        // Generate fruits on page load
+        generateFruits();
     </script>
 </body>
 </html>
